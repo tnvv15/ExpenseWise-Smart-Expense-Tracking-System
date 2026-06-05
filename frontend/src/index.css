@@ -150,6 +150,10 @@
     @apply border-border;
   }
 
+  html, body, #root {
+    position: relative;
+  }
+
   html {
     scroll-behavior: smooth;
   }

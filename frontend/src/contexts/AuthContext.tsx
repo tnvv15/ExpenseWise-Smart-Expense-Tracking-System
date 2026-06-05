@@ -1,6 +1,23 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 const API_URL = "http://localhost:8000";
+const AUTH_TOKEN_KEY = "auth_token";
+
+const getAuthToken = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+};
+
+const setAuthToken = (token: string) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+};
+
+const clearAuthStorage = () => {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem("user_data");
+};
 
 interface User {
   id: string;
@@ -42,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const init = async () => {
-      const token = localStorage.getItem("auth_token");
+      const token = getAuthToken();
       if (!token) {
         setIsAuthReady(true);
         return;
@@ -60,8 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(true);
       } catch (err) {
         console.warn("Session restore failed:", err);
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("user_data");
+        clearAuthStorage();
         setIsAuthenticated(false);
         setUser(null);
       } finally {
@@ -84,11 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      const token = body?.data?.token || body?.token;
-      const normalized = normalizeUser(body?.data?.user || body?.user);
+      const token = body?.token ?? body?.data?.token;
+      const normalized = normalizeUser(body?.user ?? body?.data?.user);
       if (!token) throw new Error("No token returned from server");
 
-      localStorage.setItem("auth_token", token);
+      setAuthToken(token);
       localStorage.setItem("user_data", JSON.stringify(normalized));
       setIsAuthenticated(true);
       setUser(normalized);
@@ -112,11 +128,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      const token = body?.data?.token || body?.token;
-      const normalized = normalizeUser(body?.data?.user || body?.user);
+      const token = body?.token ?? body?.data?.token;
+      const normalized = normalizeUser(body?.user ?? body?.data?.user);
       if (!token) throw new Error("No token returned from server");
 
-      localStorage.setItem("auth_token", token);
+      setAuthToken(token);
       localStorage.setItem("user_data", JSON.stringify(normalized));
       setIsAuthenticated(true);
       setUser(normalized);
@@ -128,8 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user_data");
+    clearAuthStorage();
     setIsAuthenticated(false);
     setUser(null);
   };
@@ -138,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return false;
 
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = getAuthToken();
       const res = await fetch(`${API_URL}/auth/profile`, {
         method: "PATCH",
         headers: {
@@ -170,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = getAuthToken();
       const res = await fetch(`${API_URL}/auth/change-password`, {
         method: "POST",
         headers: {
